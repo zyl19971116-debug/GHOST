@@ -1,0 +1,194 @@
+// GHOST PROTOCOL AI — data model
+//
+// Prisma schema for the PostgreSQL backend.
+//
+// Design notes
+// ------------
+// * `Transaction` rows are keyed by chain + tx hash. They are only ever written
+//   from data actually read off-chain; there is no seeding, no sample data and
+//   no synthetic filler. An empty database is a valid, and the expected, initial
+//   state.
+// * `Archive` stores the analysis digest (hash), version, the wallet it belongs
+//   to and an optional metadata CID. The full report body is intentionally NOT a
+//   column here — it is never published on-chain, and keeping it out of the
+//   attestation table keeps the two concerns separate.
+// * With DATABASE_URL unset the application transparently falls back to the
+//   in-memory repository, so the whole product runs without Postgres.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// A wallet observed on a specific chain.
+model Wallet {
+  id        String   @id @default(cuid())
+  chainId   Int
+  address   String
+  /// Lowercased address, used for lookups.
+  addressLc String
+  isContract Boolean?
+  codeSize  Int?
+  /// Latest observed native balance in wei (decimal string).
+  balanceWei String?
+  nonce     Int?
+  firstSeenBlock Int?
+  lastSeenBlock  Int?
+  lastSyncedAt   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactionsFrom Transaction[] @relation("tx_from")
+  transactionsTo   Transaction[] @relation("tx_to")
+  analyses         Analysis[]
+  archives         Archive[]
+  relationshipsAsSource Relationship[] @relation("rel_source")
+  relationshipsAsTarget Relationship[] @relation("rel_target")
+
+  @@unique([chainId, addressLc])
+  @@index([addressLc])
+  @@index([chainId, lastSeenBlock])
+}
+
+/// A single on-chain transaction. Every field is read from the chain or a
+/// configured indexer; nothing here is generated.
+model Transaction {
+  id          String   @id @default(cuid())
+  chainId     Int
+  hash        String
+  blockNumber Int
+  blockHash   String
+  blockTime   DateTime
+  fromId      String
+  toId        String?
+  from        Wallet   @relation("tx_from", fields: [fromId], references: [id], onDelete: Cascade)
+  to          Wallet?  @relation("tx_to", fields: [toId], references: [id], onDelete: SetNull)
+  /// Native value in wei, decimal string.
+  valueWei    String
+  gasLimit    String
+  gasPriceWei String
+  gasUsed     String?
+  feeWei      String?
+  nonce       Int
+  inputSize   Int
+  methodId    String?
+  methodLabel String?
+  txType      String
+  status      String
+  isContractCreation  Boolean @default(false)
+  isContractInteraction Boolean @default(false)
+  /// Which strategy produced this row: rpc-block-scan | explorer-indexer | rpc-logs
+  sourceStrategy String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([chainId, hash])
+  @@index([chainId, blockNumber])
+  @@index([fromId])
+  @@index([toId])
+}
+
+/// A relationship edge derived by the deterministic engine.
+model Relationship {
+  id        String   @id @default(cuid())
+  chainId   Int
+  sourceId  String
+  targetId  String
+  source    Wallet   @relation("rel_source", fields: [sourceId], references: [id], onDelete: Cascade)
+  target    Wallet   @relation("rel_target", fields: [targetId], references: [id], onDelete: Cascade)
+  txCount   Int      @default(0)
+  volumeWei String   @default("0")
+  direction String
+  firstSeenAt DateTime?
+  lastSeenAt  DateTime?
+  /// 0..1 — strength of the OBSERVED pattern, not identity of a controller.
+  confidence Float
+  /// JSON array of the reasons the engine assigned that confidence.
+  basis      Json
+  sampleTxHashes Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([chainId, sourceId, targetId])
+  @@index([chainId])
+}
+
+/// One analysis run over one wallet.
+model Analysis {
+  id        String   @id @default(cuid())
+  /// Deterministic sha256 digest of the analysed inputs.
+  reportHash String
+  reportVersion String
+  chainId   Int
+  subjectId String
+  subject   Wallet   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  /// Bounded scan window actually examined.
+  fromBlock Int?
+  toBlock   Int?
+  blocksScanned Int?
+  txCount   Int      @default(0)
+  counterpartyCount Int @default(0)
+  anomalyCount Int   @default(0)
+  netFlowWei String  @default("0")
+  successRate Float  @default(0)
+  /// Full deterministic statistics snapshot.
+  stats     Json
+  /// Graph nodes and edges snapshot.
+  graph     Json
+  /// AI narrative, or a record of why it is absent.
+  ai        Json
+  /// Data source provenance block.
+  sources   Json
+  createdAt DateTime @default(now())
+
+  archives  Archive[]
+
+  @@index([chainId, reportHash])
+  @@index([subjectId, createdAt])
+}
+
+/// A saved analysis plus its optional on-chain attestation.
+model Archive {
+  id        String   @id @default(cuid())
+  /// Digest that was (or will be) registered on-chain.
+  reportHash String
+  reportVersion String
+  chainId   Int
+  subjectId String
+  subject   Wallet   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  analysisId String?
+  analysis  Analysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+  label     String
+  /// IPFS / other content-addressed pointer to the report body. The body itself
+  /// is never written on-chain.
+  metadataCid String?
+  attestationStatus String @default("not_deployed")
+  attestationTxHash String?
+  attestationContract String?
+  attestationChainId Int?
+  attestationError  String?
+  attestedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([reportHash])
+  @@index([subjectId, createdAt])
+}
+
+/// Live sync bookkeeping, so the UI can show an honest "latest synchronised
+/// block" instead of a hardcoded value.
+model SyncState {
+  id        String   @id @default(cuid())
+  chainId   Int      @unique
+  latestSyncedBlock Int @default(0)
+  latestBlockTime   DateTime?
+  /// Host of the endpoint that produced the last successful read.
+  sourceHost String?
+  /// none | rpc-scan-only | explorer
+  historyIndexMode String @default("none")
+  lastError String?
+  updatedAt DateTime @updatedAt
+}

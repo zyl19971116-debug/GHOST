@@ -1,0 +1,361 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   GHOST PROTOCOL AI — design tokens
+   Palette from the visual reference: deep black-blue base, silver-white text,
+   ice-blue and blue-violet emissive accents.
+   ========================================================================== */
+:root {
+  --void: #030711;
+  --abyss: #03060d;
+  --panel: #0a1120;
+  --ice: #9fc5ff;
+  --violet: #827cff;
+  --ghost: #f5f8ff;
+  --muted: #a0b2d0;
+  --line: rgba(160, 195, 255, 0.16);
+  --line-strong: rgba(160, 195, 255, 0.3);
+
+  /* System font stack — deliberately no network font fetch at build time. */
+  --font-display: 'Bahnschrift', 'DIN Alternate', 'Eurostile', 'Rajdhani', 'Arial Narrow', sans-serif;
+  --font-sans: 'Inter', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Mono', 'Consolas', 'SF Mono', ui-monospace, monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  background: var(--void);
+  /* Prevents layout shift when a page grows past the viewport. */
+  scrollbar-gutter: stable;
+}
+
+body {
+  background-color: var(--void);
+  color: var(--ghost);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(141, 190, 255, 0.3);
+  color: #fff;
+}
+
+/* Scrollbars styled to match the HUD. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(5, 9, 19, 0.6);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(141, 190, 255, 0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(141, 190, 255, 0.32);
+  background-clip: content-box;
+}
+
+/* ==========================================================================
+   Component layer
+   ========================================================================== */
+@layer components {
+  /* Glass-morphism panel used by every surface on the site. */
+  .glass {
+    background:
+      linear-gradient(150deg, rgba(141, 190, 255, 0.085) 0%, rgba(9, 15, 28, 0.72) 42%, rgba(130, 124, 255, 0.06) 100%);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+    border: 1px solid var(--line);
+    box-shadow:
+      inset 0 1px 0 0 rgba(242, 246, 255, 0.05),
+      0 22px 70px -32px rgba(0, 0, 0, 0.95);
+  }
+
+  .glass-strong {
+    background: linear-gradient(160deg, rgba(12, 20, 38, 0.94) 0%, rgba(6, 11, 22, 0.96) 100%);
+    backdrop-filter: blur(20px) saturate(130%);
+    -webkit-backdrop-filter: blur(20px) saturate(130%);
+    border: 1px solid var(--line-strong);
+    box-shadow:
+      inset 0 1px 0 0 rgba(242, 246, 255, 0.06),
+      0 30px 90px -40px rgba(0, 0, 0, 1);
+  }
+
+  /* HUD corner brackets — pure CSS, no images. */
+  .hud-corners {
+    position: relative;
+  }
+  .hud-corners::before,
+  .hud-corners::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-color: var(--line-strong);
+    pointer-events: none;
+    transition: border-color 220ms ease;
+  }
+  .hud-corners::before {
+    top: -1px;
+    left: -1px;
+    border-top: 1px solid;
+    border-left: 1px solid;
+  }
+  .hud-corners::after {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 1px solid;
+    border-right: 1px solid;
+  }
+  .hud-corners:hover::before,
+  .hud-corners:hover::after {
+    border-color: rgba(141, 190, 255, 0.75);
+  }
+
+  /* Animated top scan-line for panels. */
+  .scanline::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(141, 190, 255, 0.75), transparent);
+    animation: var(--anim-scan, sweep-x 3.4s ease-in-out infinite);
+    pointer-events: none;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 22px rgba(141, 190, 255, 0.55), 0 0 60px rgba(130, 124, 255, 0.28);
+  }
+  .text-glow-soft {
+    text-shadow: 0 0 14px rgba(141, 190, 255, 0.35);
+  }
+
+  .hud-label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Thin 1px hairline with a soft bloom. */
+  .hairline {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(141, 190, 255, 0.35), transparent);
+  }
+
+  .focus-ring {
+    outline: none;
+  }
+  .focus-ring:focus-visible {
+    outline: 2px solid rgba(141, 190, 255, 0.7);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Grid backdrop: two layered line grids plus a radial vignette. */
+  .bg-hud {
+    background-image:
+      radial-gradient(ellipse 90% 60% at 50% -10%, rgba(141, 190, 255, 0.13), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 85% 110%, rgba(130, 124, 255, 0.12), transparent 62%),
+      linear-gradient(to right, rgba(141, 190, 255, 0.055) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(141, 190, 255, 0.055) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 56px 56px, 56px 56px;
+  }
+
+  .bg-fine-grid {
+    background-image:
+      linear-gradient(to right, rgba(141, 190, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(141, 190, 255, 0.035) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .mask-fade-b {
+    mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent 100%);
+  }
+
+  .mask-fade-r {
+    mask-image: linear-gradient(to right, black 70%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 70%, transparent 100%);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ==========================================================================
+   Reduced motion — every animation collapses to a static state.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .scanline::after {
+    opacity: 0.35;
+  }
+}
+
+/* RainbowKit theme alignment so its modal matches the HUD. */
+[data-rk] {
+  --rk-radii-modal: 4px;
+  --rk-radii-connectButton: 2px;
+}
+
+/* Homepage cinematic layers. Generated art remains scenery only: every label,
+   route and live datum above it is native, accessible UI. */
+.command-scan {
+  background-image: repeating-linear-gradient(180deg, transparent 0, transparent 3px, rgba(182, 211, 255, 0.035) 4px);
+  mix-blend-mode: screen;
+}
+
+.feature-card {
+  background-image: url('/assets/ghost/command-center.png');
+  background-size: 760px auto;
+  background-color: #050b16;
+}
+.feature-card-1 { background-position: 23% 67%; }
+.feature-card-2 { background-position: 43% 42%; }
+.feature-card-3 { background-position: 67% 53%; }
+.feature-card-4 { background-position: 86% 72%; }
+
+.ghost-figure {
+  transform: translateY(-10%) scale(1.43);
+  transform-origin: center bottom;
+}
+
+@media (min-width: 1024px) and (max-width: 1599px) {
+  .ghost-figure {
+    transform: translateY(-4%) scale(1.72);
+  }
+}
+
+@media (min-width: 1600px) {
+  .ghost-figure {
+    transform: translateY(6%) scale(1.9);
+  }
+}
+
+@media (max-width: 1023px) {
+  .command-hero > div:nth-child(2) { padding-bottom: 3rem; }
+}
+
+/* Network Explorer command console */
+.network-page {
+  background-image:
+    linear-gradient(180deg, rgba(3, 7, 17, 0.72), rgba(3, 7, 17, 0.93)),
+    url('/assets/ghost/command-center.png'),
+    radial-gradient(circle at 82% 8%, rgba(55, 118, 205, 0.13), transparent 27%),
+    linear-gradient(rgba(107, 170, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 170, 255, 0.025) 1px, transparent 1px);
+  background-size: cover, cover, auto, 48px 48px, 48px 48px;
+  background-position: center, center, center, center, center;
+  background-attachment: fixed;
+}
+.network-panel {
+  border: 1px solid rgba(166, 201, 255, 0.2);
+  background: linear-gradient(145deg, rgba(11, 20, 36, 0.96), rgba(4, 10, 20, 0.91));
+  box-shadow: inset 0 1px 0 rgba(245, 248, 255, 0.04), 0 22px 70px -45px rgba(75, 146, 255, 0.5);
+  backdrop-filter: blur(18px);
+}
+.network-canvas {
+  border: 1px solid rgba(166, 201, 255, 0.22);
+  background-color: #040a14;
+  background-image:
+    radial-gradient(circle at 50% 45%, rgba(43, 104, 190, 0.17), transparent 42%),
+    radial-gradient(circle, rgba(190, 219, 255, 0.36) 0 1px, transparent 1.4px),
+    linear-gradient(rgba(107, 170, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107, 170, 255, 0.035) 1px, transparent 1px);
+  background-size: auto, 53px 53px, 42px 42px, 42px 42px;
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.72);
+}
+.network-workspace-height { height: clamp(650px, calc(100svh - 250px), 1050px); }
+.network-canvas-height { height: clamp(589px, calc(100svh - 311px), 989px) !important; }
+.network-canvas::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: linear-gradient(180deg, transparent 0, rgba(125, 184, 255, 0.06) 50%, transparent 51%);
+  background-size: 100% 170px;
+  opacity: 0.45;
+  animation: network-scan 8s linear infinite;
+}
+.network-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  border: 1px solid rgba(184, 218, 255, 0.9);
+  background: linear-gradient(110deg, #b9dcff, #6baaff 72%, #668cff);
+  box-shadow: 0 0 24px rgba(107, 170, 255, 0.23), inset 0 1px 0 white;
+  color: #06101f;
+  font: 700 0.66rem/1 var(--font-display), sans-serif;
+  letter-spacing: 0.14em;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+.network-primary:hover { transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 0 34px rgba(107, 170, 255, 0.38); }
+.network-range { accent-color: #8abfff; }
+.network-orb { display:flex; align-items:center; justify-content:center; border:1px solid rgba(166,201,255,.5); border-radius:999px; color:#a6c9ff; background:radial-gradient(circle,rgba(107,170,255,.2),transparent 65%); box-shadow:0 0 34px rgba(107,170,255,.2),inset 0 0 24px rgba(107,170,255,.12); }
+.network-radar { position:relative; width:150px; height:150px; border:1px solid rgba(166,201,255,.45); border-radius:50%; box-shadow:0 0 45px rgba(107,170,255,.12),inset 0 0 35px rgba(107,170,255,.1); }
+.network-radar::before,.network-radar::after,.network-radar div { content:''; position:absolute; border:1px solid rgba(166,201,255,.18); border-radius:50%; inset:20%; }
+.network-radar::after { inset:39%; }
+.network-radar div:nth-child(1){ inset:50% 0 auto; border:0; border-top:1px solid rgba(166,201,255,.22); border-radius:0; }
+.network-radar div:nth-child(2){ inset:0 auto 0 50%; border:0; border-left:1px solid rgba(166,201,255,.22); border-radius:0; }
+.network-radar span { position:absolute; inset:50%; width:50%; height:1px; transform-origin:left; background:linear-gradient(90deg,#8abfff,transparent); animation:network-radar 3.4s linear infinite; }
+.network-holo-fallback { position:absolute; left:50%; top:42%; width:min(41vw,460px); aspect-ratio:1; transform:translate(-50%,-50%); border:1px solid rgba(166,201,255,.25); border-radius:50%; background:radial-gradient(circle,rgba(220,235,255,.78) 0 1.2%,rgba(142,197,255,.2) 2%,rgba(107,170,255,.08) 8%,transparent 46%); box-shadow:0 0 90px rgba(107,170,255,.16),inset 0 0 65px rgba(107,170,255,.1); }
+.network-holo-fallback::before,.network-holo-fallback::after { content:''; position:absolute; inset:12%; border:1px solid rgba(166,201,255,.17); border-radius:50%; }
+.network-holo-fallback::after { inset:31%; }
+.network-holo-fallback i { position:absolute; left:-12%; top:49%; width:124%; height:2px; border:1px solid rgba(127,181,255,.26); border-radius:50%; transform:rotate(-12deg); box-shadow:0 0 14px rgba(107,170,255,.18); }
+.network-holo-fallback i:nth-child(2){ transform:rotate(58deg); }
+.network-holo-fallback i:nth-child(3){ transform:rotate(118deg); }
+.network-holo-fallback i:nth-child(4){ transform:rotate(28deg) scaleY(.72); }
+.network-holo-fallback span { position:absolute; inset:50%; width:47%; height:1px; transform-origin:left; background:linear-gradient(90deg,rgba(183,218,255,.9),transparent); animation:network-radar 4.5s linear infinite; }
+.network-holo-fallback b { position:absolute; width:6px; height:6px; left:50%; top:50%; border:1px solid rgba(220,235,255,.9); border-radius:50%; background:#8ec5ff; box-shadow:0 0 10px #6baaff; }
+.network-holo-fallback b:nth-of-type(1){transform:translate(-132px,-66px)} .network-holo-fallback b:nth-of-type(2){transform:translate(116px,-82px)}
+.network-holo-fallback b:nth-of-type(3){transform:translate(-92px,104px)} .network-holo-fallback b:nth-of-type(4){transform:translate(126px,72px)}
+.network-holo-fallback b:nth-of-type(5){transform:translate(-42px,-145px)} .network-holo-fallback b:nth-of-type(6){transform:translate(48px,135px)}
+.network-holo-fallback b:nth-of-type(7){transform:translate(-164px,18px)} .network-holo-fallback b:nth-of-type(8){transform:translate(158px,-8px)}
+.network-holo-fallback b:nth-of-type(9){transform:translate(-72px,-30px);width:9px;height:9px} .network-holo-fallback b:nth-of-type(10){transform:translate(68px,24px);width:9px;height:9px}
+.network-holo-fallback b:nth-of-type(11){transform:translate(18px,-92px)} .network-holo-fallback b:nth-of-type(12){transform:translate(-12px,82px)}
+.network-holo-fallback b:nth-of-type(13){transform:translate(-116px,54px)} .network-holo-fallback b:nth-of-type(14){transform:translate(104px,-30px)}
+.network-panel { position:relative; }
+.network-panel::after { content:''; pointer-events:none; position:absolute; inset:0; background:linear-gradient(110deg,transparent 0 46%,rgba(142,197,255,.025) 50%,transparent 54%); background-size:220% 100%; opacity:.85; }
+@keyframes network-scan { to { background-position: 0 170px; } }
+@keyframes network-radar { to { transform:rotate(360deg); } }
+@media (max-width: 1279px) {
+  .network-page > div { width: 96vw; }
+  .network-workspace-height { height: auto; max-height: 620px; }
+  .network-canvas-height { height: 620px !important; }
+}
+@media (max-width: 639px) {
+  .network-canvas-height { height: 520px !important; }
+}
+@media (prefers-reduced-motion: reduce) { .network-canvas::after,.network-radar span,.network-holo-fallback span { animation:none; } }

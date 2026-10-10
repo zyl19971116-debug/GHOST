@@ -1,0 +1,20 @@
+{
+  "name": "ghost-protocol-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GHOST PROTOCOL AI — optional analysis attestation contract (AnalysisRegistry). Not a token, not a custody contract, not a trading contract.",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy": "hardhat run scripts/deploy.js",
+    "verify": "hardhat run scripts/verify.js",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "3.0.8",
+    "@nomicfoundation/hardhat-verify": "2.0.12",
+    "chai": "4.5.0",
+    "ethers": "6.13.5",
+    "hardhat": "2.22.18"
+  }
+}

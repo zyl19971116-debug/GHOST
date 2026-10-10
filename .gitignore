@@ -82,3 +82,6 @@ Thumbs.db
 /preflight.txt
 /contracts-compile.txt
 /contracts-test.txt
+
+.vercel
+.env*
